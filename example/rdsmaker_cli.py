@@ -118,7 +118,7 @@ def recreate_instance(source_instance_name, target_instance_name, instance_class
     )
     # 既存DBリネーム時はtmpサフィックスをつけておく
     tmp_renamed_instance_name = '{base_name}-tmp'.format(base_name=target_instance_name)
-    rds_re_maker = RdsMaker(
+    rds_maker = RdsMaker(
         region_name=REGION_NAME,
         az_name=AZ_NAME,
         aws_access_key=AWS_ACCESS_KEY,
@@ -126,32 +126,32 @@ def recreate_instance(source_instance_name, target_instance_name, instance_class
         logger=default_logger
     )
 
-    if not rds_re_maker.is_db_exist(target_instance_name):
+    if not rds_maker.is_db_exist(target_instance_name):
         default_logger.critical('{} is not exist.'.format(target_instance_name))
         sys.exit(1)
 
-    snapshot_identifier = rds_re_maker.get_latest_snapshot(source_instance_name)
+    snapshot_identifier = rds_maker.get_latest_snapshot(source_instance_name)
     # 仮の名前でDB作成
-    rds_re_maker.create_db_instance_sync(
+    rds_maker.create_db_instance_sync(
         db_identifier=tmp_new_instance_name,
         snapshot_identifier=snapshot_identifier,
         instance_class=instance_class,
     )
     # 作成時には設定できない部分を変更
-    rds_re_maker.change_db_instance_attributes_sync(db_identifier=tmp_new_instance_name, attributes={
+    rds_maker.change_db_instance_attributes_sync(db_identifier=tmp_new_instance_name, attributes={
         'DBParameterGroupName': DB_PARAMETER_GROUP,
         'BackupRetentionPeriod': 7,
         'VpcSecurityGroupIds': [VPC_SECURITY_GROUP_ID],
     })
 
     # 既存のインスタンスをリネーム
-    rds_re_maker.rename_db_instance_sync(from_identifier=target_instance_name, to_identifier=tmp_renamed_instance_name)
+    rds_maker.rename_db_instance_sync(from_identifier=target_instance_name, to_identifier=tmp_renamed_instance_name)
 
     # 作成した新規インスタンスをリネームして同名にする
-    rds_re_maker.rename_db_instance_sync(from_identifier=tmp_new_instance_name, to_identifier=target_instance_name)
+    rds_maker.rename_db_instance_sync(from_identifier=tmp_new_instance_name, to_identifier=target_instance_name)
 
     # もともとのインスタンス削除
-    snapshot_name = rds_re_maker.delete_db_instance(db_identifier=tmp_renamed_instance_name)
+    snapshot_name = rds_maker.delete_db_instance(db_identifier=tmp_renamed_instance_name)
 
     default_logger.info('end RDS Re Maker.')
 
@@ -168,7 +168,7 @@ def create_instance(source_instance_name, target_instance_name, instance_class):
 
     default_logger.info('start RDS Re Maker[only create mode].')
 
-    rds_re_maker = RdsMaker(
+    rds_maker = RdsMaker(
         region_name=REGION_NAME,
         az_name=AZ_NAME,
         aws_access_key=AWS_ACCESS_KEY,
@@ -177,19 +177,19 @@ def create_instance(source_instance_name, target_instance_name, instance_class):
     )
 
     # 再作成ではないので同名DBがある場合は終了する
-    if rds_re_maker.is_db_exist(target_instance_name):
+    if rds_maker.is_db_exist(target_instance_name):
         default_logger.critical('{} is exist.'.format(target_instance_name))
         sys.exit(1)
 
-    snapshot_identifier = rds_re_maker.get_latest_snapshot(source_instance_name)
+    snapshot_identifier = rds_maker.get_latest_snapshot(source_instance_name)
     # DB作成
-    rds_re_maker.create_db_instance_sync(
+    rds_maker.create_db_instance_sync(
         db_identifier=target_instance_name,
         snapshot_identifier=snapshot_identifier,
         instance_class=instance_class,
     )
     # 作成時には設定できない部分を変更
-    rds_re_maker.change_db_instance_attributes_sync(db_identifier=target_instance_name, attributes={
+    rds_maker.change_db_instance_attributes_sync(db_identifier=target_instance_name, attributes={
         'DBParameterGroupName': DB_PARAMETER_GROUP,
         'BackupRetentionPeriod': 7,
         'VpcSecurityGroupIds': [VPC_SECURITY_GROUP_ID],
