@@ -29,10 +29,10 @@ class RdsMaker:
 
     def __init__(self, region_name, az_name, aws_access_key, aws_rds_secret_key, logger=None):
         """
-        :param str region_name:
-        :param str az_name:
-        :param str aws_access_key:
-        :param str aws_rds_secret_key:
+        :param str region_name: リージョン名
+        :param str az_name: AZ名
+        :param str aws_access_key: RDSFullControlを持つAWSアクセスキー
+        :param str aws_rds_secret_key: RDSFullControlを持つAWSシークレットアクセスキー
         :param logger:
         """
         self.logger = logger or default_logger
@@ -67,12 +67,16 @@ class RdsMaker:
     def get_latest_snapshot(self, db_identifier):
         """
         指定したインスタンスの最新のスナップショットを取得する
-        :param str db_identifier:
+        :param str db_identifier: DBインスタンス名
         :return: スナップショット識別情報
         :rtype: str
         """
         row_snaps = self.rds.describe_db_snapshots(DBInstanceIdentifier=db_identifier)
         snapshots = row_snaps['DBSnapshots']
+        if not snapshots:
+            raise RdsMakerException('Not Found Valid Snapshot for {}'.format(db_identifier))
+
+        # 最新のスナップショットを取得
         snapshot_identifier = snapshots[-1]['DBSnapshotIdentifier']
         self.logger.info('get latest snapshot of [{}] is [{}]'.format(db_identifier, snapshot_identifier))
         return snapshot_identifier
@@ -80,7 +84,7 @@ class RdsMaker:
     def _get_instance_status(self, db_identifier):
         """
         指定したインスタンスのステータスを取得する
-        :param str db_identifier:
+        :param str db_identifier: 確認するDBインスタンス名
         :return: 現在のステータス
         :rtype: str
         """
@@ -91,7 +95,7 @@ class RdsMaker:
         指定したインスタンスがavailableになるまで待機する。ただし変更操作の直後に
         実行するとそのままavailableであるため、一旦available以外になることを確認してから
         待機を行う
-        :param str db_identifier:
+        :param str db_identifier: 確認するDBインスタンス名
         :rtype: None
         """
 
@@ -129,9 +133,9 @@ class RdsMaker:
         """
         指定したスナップショットからDBインスタンスを作成する。
         作成したインスタンスがavailableになるまで待機する
-        :param str db_identifier:
-        :param str snapshot_identifier:
-        :param str instance_class:
+        :param str db_identifier: 作成するDBインスタンス名
+        :param str snapshot_identifier: 作成元になるスナップショット名
+        :param str instance_class: 作成時のインスタンスクラス
         :return: 作成されたDBインスタンス名
         :rtype: str
         """
@@ -151,9 +155,10 @@ class RdsMaker:
     def change_db_instance_attributes_sync(self, db_identifier, attributes=None):
         """
         DBインスタンス作成時には指定できない属性を変更する
-        :param str db_identifier:
-        :param dict attributes:
-        :return:
+        :param str db_identifier: 変更対象のDBインスタンス名
+        :param dict attributes: 変更する属性のDict(boto3の引数ベース)
+        :return: DBインスタンス名
+        :rtype: str
         """
         self.logger.info('modify instance [{}]'.format(db_identifier))
         if not attributes:
@@ -171,8 +176,8 @@ class RdsMaker:
     def rename_db_instance_sync(self, from_identifier, to_identifier, limit_seconds=30 * 60):
         """
         DBインスタンス名を変更する。変更完了まで待機する
-        :param str from_identifier:
-        :param str to_identifier:
+        :param str from_identifier: 変更対象のDBインスタンス名
+        :param str to_identifier: 変更先のDBインスタンス名
         :param int limit_seconds: 待機限界秒数(デフォルト30分(1800秒))
         :return: リネーム後のインスタンス名
         :rtype: str
@@ -203,7 +208,7 @@ class RdsMaker:
     def delete_db_instance(self, db_identifier):
         """
         指定したDBインスタンスを削除する。削除時にスナップショットを取得する
-        :param str db_identifier: 削除対象インスタンス
+        :param str db_identifier: 削除対象DBインスタンス
         :return: 最終スナップショット名
         :rtype: str
         """

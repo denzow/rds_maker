@@ -3,6 +3,8 @@ rds maker
 
 thin wrapper boto3 for RDS
 
+[more information](http://www.denzow.me/entry/2018/01/08/203459)
+
 ## install
 
 ```sh
